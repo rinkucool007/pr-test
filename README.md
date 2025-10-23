@@ -3,7 +3,7 @@
 A modern, responsive dashboard for visualizing GitHub Pull Request analytics with dynamic data visualization, dark/light mode, and real-time filtering capabilities.
 
 
-### Method 4: Using PHP
+### Method: Using Python
 
 ```bash
 python -m http.server 8000
@@ -31,3 +31,4 @@ Github-PR-1023/
 └── data/
     └── pr_data.csv        # Pull Request data source
 ```
+
