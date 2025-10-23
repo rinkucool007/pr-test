@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PR Visionary | GitHub Analytics Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {}
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        // Apply theme immediately to prevent flash
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (savedTheme === 'dark' || (!savedTheme && systemDark)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- Login Screen -->
+        <div id="login-screen" class="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-blue-600 to-indigo-800 z-50">
+            <div class="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-2xl w-96 transition-all transform hover:scale-105">
+                <div class="flex justify-center mb-8">
+                    <img src="http://static.photos/technology/320x240/42" alt="Logo" class="h-16 w-auto rounded-lg">
+                </div>
+                <h1 class="text-2xl font-bold text-center text-gray-800 dark:text-white mb-6">PR Visionary Dashboard</h1>
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300">User ID</label>
+                        <input type="text" id="username" required class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white">
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+                        <input type="password" id="password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white">
+                    </div>
+                    <div>
+                        <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Sign in
+                        </button>
+                    </div>
+                </form>
+                <div id="login-error" class="mt-4 text-sm text-red-600 hidden"></div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div id="dashboard" class="flex-1 hidden">
+            <custom-navbar></custom-navbar>
+            
+            <main class="flex-1 p-4 lg:p-6">
+                <div class="flex justify-between items-center mb-6 lg:mb-8 flex-wrap gap-4">
+                    <h1 class="text-xl lg:text-2xl font-bold text-gray-800 dark:text-white">GitHub PR Analytics Dashboard</h1>
+                    <div class="flex space-x-2 lg:space-x-4">
+                        <div class="relative" id="view-toggle-container">
+                            <button id="view-toggle" class="flex items-center px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg text-gray-700 dark:text-gray-200 text-sm font-medium">
+                                <span id="view-toggle-text">Static View</span>
+                                <i data-feather="chevron-down" class="ml-1 w-4 h-4"></i>
+                            </button>
+                            <div id="view-menu" class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg z-10">
+                                <div class="py-1">
+                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" data-view="static">Static View</a>
+                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" data-view="dynamic">Dynamic View</a>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="theme-toggle" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                            <i data-feather="moon" class="w-4 h-4"></i>
+                        </button>
+                        <div class="relative">
+                            <button id="settings-button" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                                <i data-feather="settings" class="w-4 h-4"></i>
+                            </button>
+                            <div id="settings-menu" class="hidden absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-md shadow-lg z-10 p-4">
+                                <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Logged in as: <span id="logged-in-user" class="font-medium">admin</span></div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400 mb-4">Login time: <span id="login-time" class="font-medium">10:30:45</span></div>
+                                <button id="logout-button" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                    Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Static View -->
+                <div id="static-view" class="space-y-6">
+                    <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Daily PR Counters</h2>
+                        <div class="flex items-center space-x-2 flex-wrap gap-2">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Date Filter:</label>
+                            <input type="date" id="static-date-filter" class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <button id="static-reset-filter" class="px-3 py-2 text-sm bg-gray-500 text-white rounded-lg hover:bg-gray-600 whitespace-nowrap">Reset</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+                        <div class="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-xl shadow-md">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Development</p>
+                                    <p class="text-xs text-gray-400 dark:text-gray-500">Today</p>
+                                </div>
+                                <div class="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                    <i data-feather="git-pull-request" class="w-5 h-5"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <h3 class="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-white" id="dev-count">12</h3>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-xl shadow-md">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Master</p>
+                                    <p class="text-xs text-gray-400 dark:text-gray-500">Today</p>
+                                </div>
+                                <div class="p-2 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
+                                    <i data-feather="git-pull-request" class="w-5 h-5"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <h3 class="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-white" id="master-count">8</h3>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-xl shadow-md">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Release</p>
+                                    <p class="text-xs text-gray-400 dark:text-gray-500">Today</p>
+                                </div>
+                                <div class="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                                    <i data-feather="git-pull-request" class="w-5 h-5"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <h3 class="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-white" id="release-count">5</h3>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-xl shadow-md">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Feature</p>
+                                    <p class="text-xs text-gray-400 dark:text-gray-500">Today</p>
+                                </div>
+                                <div class="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400">
+                                    <i data-feather="git-pull-request" class="w-5 h-5"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <h3 class="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-white" id="trailsb-count">3</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dynamic View -->
+                <div id="dynamic-view" class="space-y-6 hidden">
+                    <div class="flex justify-between items-center flex-wrap gap-4">
+                        <h2 class="text-xl font-semibold text-gray-800 dark:text-white">Development Branch Analytics</h2>
+                        <div class="flex space-x-2 flex-wrap items-center gap-2">
+                            <div class="flex items-center space-x-2">
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Date:</label>
+                                <input type="date" id="dynamic-date-filter" class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <button id="dynamic-reset-filter" class="px-3 py-2 text-sm bg-gray-500 text-white rounded-lg hover:bg-gray-600 whitespace-nowrap">Reset</button>
+                            </div>
+                            <div class="relative hidden md:block">
+                                <input type="text" id="search-filter" placeholder="Search PRs..." class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <button id="export-button" class="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center space-x-2 whitespace-nowrap">
+                                <i data-feather="download" class="w-4 h-4"></i>
+                                <span>Export</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                        <div class="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-xl shadow-md">
+                            <h3 class="text-base lg:text-lg font-medium text-gray-800 dark:text-white mb-3">PR Creation Trend</h3>
+                            <div class="chart-container">
+                                <canvas id="pr-trend-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-xl shadow-md">
+                            <h3 class="text-base lg:text-lg font-medium text-gray-800 dark:text-white mb-3">PR Status Distribution</h3>
+                            <div class="chart-container">
+                                <canvas id="pr-status-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-xl shadow-md">
+                            <h3 class="text-base lg:text-lg font-medium text-gray-800 dark:text-white mb-3">PRs by Contributor</h3>
+                            <div class="chart-container">
+                                <canvas id="contributor-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-xl shadow-md">
+                            <h3 class="text-base lg:text-lg font-medium text-gray-800 dark:text-white mb-3">Average Time to Merge</h3>
+                            <div class="chart-container">
+                                <canvas id="merge-time-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <custom-footer></custom-footer>
+    </div>
+
+    <script src="components/navbar.js"></script>
+    <script src="components/footer.js"></script>
+    <script src="script.js"></script>
+    <script>
+        feather.replace();
+    </script>
+</body>
+</html>
